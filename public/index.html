@@ -505,7 +505,7 @@
         </div>
         <div class="bulk-buttons">
           <button type="button" class="btn btn-sm btn-primary" id="bulkWishlistBtn" onclick="addSelectedToWishlist()">
-            ⭐ Add Selected to Shortlist (<span id="bulkWishlistCount">0</span>)
+            ⭐ <span class="bulk-add-full">Add Selected to Shortlist</span><span class="bulk-add-short">Shortlist</span> (<span id="bulkWishlistCount">0</span>)
           </button>
           <button type="button" class="btn btn-sm btn-outline-info" style="border-color:#38bdf8; color:#38bdf8;" onclick="selectAllNpstShifts()">
             ⚡ Select All NPST Shifts (114)
@@ -514,7 +514,7 @@
             🟢 Select Free NPST
           </button>
           <button type="button" class="btn btn-sm btn-ghost" onclick="clearSelectedShifts()">
-            Clear Selection
+            <span class="clear-full">Clear Selection</span><span class="clear-short">✕ Clear</span>
           </button>
           <button type="button" class="btn btn-sm btn-ghost" onclick="copySelectedLineNumbers()">
             📋 Copy Lines
