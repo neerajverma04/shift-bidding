@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shift Bidding">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>YUL Shift Bidding Live System | W26</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body class="dark">
+  <!-- Top App Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="airport-badge">
+        <span class="airport-code">YUL</span>
+        <span class="badge-sub">W26 BID</span>
+      </div>
+      <div>
+        <h1 class="app-title">Airport Shift Bidding Assistant</h1>
+        <p class="app-subtitle">Live Schedule Filter, Free Line Tracker & Seniority Planner</p>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Install App Button (Android/Chrome PWA prompt) -->
+      <button id="installAppBtn" class="btn btn-primary btn-sm hidden" style="border-radius: 20px; padding: 5px 12px; font-size: 0.78rem; background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);">
+        📲 Install App
+      </button>
+
+      <!-- Live Sync Status Indicator -->
+      <div class="sync-indicator" id="syncIndicator">
+        <span class="pulse-dot"></span>
+        <div class="sync-texts">
+          <span class="sync-status-label" id="syncStatusLabel">Live Connected</span>
+          <span class="sync-time-label" id="syncTimeLabel">Updated: Just now</span>
+        </div>
+      </div>
+
+      <!-- Live Auto Refresh Controls -->
+      <div class="auto-refresh-box">
+        <label for="autoRefreshSelect" class="sr-only">Auto Refresh</label>
+        <select id="autoRefreshSelect" class="styled-select-sm">
+          <option value="15">Auto: 15s</option>
+          <option value="30" selected>Auto: 30s</option>
+          <option value="60">Auto: 60s</option>
+          <option value="0">Auto: Off</option>
+        </select>
+        <button id="refreshBtn" class="btn btn-secondary btn-icon" title="Refresh Live Google Sheets Data">
+          <svg class="spin-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/>
+          </svg>
+          <span class="btn-text">Refresh</span>
+        </button>
+      </div>
+
+      <!-- Theme Toggle -->
+      <button id="themeToggle" class="btn btn-ghost btn-icon" title="Toggle Dark/Light Mode">
+        <span id="themeIcon">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI / Stats Summary Bar -->
+  <section class="kpi-container">
+    <div class="kpi-card highlight-green" id="kpiFreeCard" data-filter="free">
+      <div class="kpi-icon">🟢</div>
+      <div class="kpi-content">
+        <span class="kpi-value" id="kpiFreeCount">--</span>
+        <span class="kpi-label">Free Lines Remaining</span>
+      </div>
+      <span class="kpi-tag" id="kpiFreePercent">--%</span>
+    </div>
+
+    <div class="kpi-card" id="kpiWeekendCard" data-filter="weekend">
+      <div class="kpi-icon">🏖️</div>
+      <div class="kpi-content">
+        <span class="kpi-value" id="kpiWeekendCount">--</span>
+        <span class="kpi-label">Weekend Off (Sat+Sun)</span>
+      </div>
+      <span class="kpi-tag blue">Prime</span>
+    </div>
+
+    <div class="kpi-card" id="kpiFTCard" data-filter="ft">
+      <div class="kpi-icon">💼</div>
+      <div class="kpi-content">
+        <span class="kpi-value" id="kpiFTCount">--</span>
+        <span class="kpi-label">Full-Time (40h) Free</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" id="kpiPTCard" data-filter="pt">
+      <div class="kpi-icon">⏱️</div>
+      <div class="kpi-content">
+        <span class="kpi-value" id="kpiPTCount">--</span>
+        <span class="kpi-label">Part-Time (20-24h) Free</span>
+      </div>
+    </div>
+
+    <div class="kpi-card" id="kpiTakenCard" data-filter="taken">
+      <div class="kpi-icon">🔴</div>
+      <div class="kpi-content">
+        <span class="kpi-value" id="kpiTakenCount">--</span>
+        <span class="kpi-label">Claimed / Awarded</span>
+      </div>
+    </div>
+
+    <div class="kpi-card highlight-amber" id="kpiWishlistCard" data-tab="wishlist">
+      <div class="kpi-icon">⭐</div>
+      <div class="kpi-content">
+        <span class="kpi-value" id="kpiWishlistCount">0</span>
+        <span class="kpi-label">My Shortlist (<span id="kpiWishlistFree">0</span> Free)</span>
+      </div>
+      <span class="kpi-tag amber">Priority</span>
+    </div>
+  </section>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs-wrapper">
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="explorer">
+        <span class="tab-icon">🔍</span>
+        <span>Shift Lines Explorer</span>
+        <span class="tab-counter" id="explorerTabCounter">0</span>
+      </button>
+      <button class="nav-tab" data-tab="wishlist">
+        <span class="tab-icon">⭐</span>
+        <span>My Wishlist / Shortlist</span>
+        <span class="tab-counter amber" id="wishlistTabCounter">0</span>
+      </button>
+      <button class="nav-tab" data-tab="roster">
+        <span class="tab-icon">👥</span>
+        <span>Seniority & Bidding Roster</span>
+        <span class="tab-counter" id="rosterTabCounter">1,110</span>
+      </button>
+      <button class="nav-tab" data-tab="analytics">
+        <span class="tab-icon">📊</span>
+        <span>Department Breakdown</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN TAB CONTENT -->
+  <main class="main-content">
+    
+    <!-- TAB 1: SHIFT LINES EXPLORER -->
+    <div class="tab-pane active" id="paneExplorer">
+      <!-- Filter Toolbar -->
+      <!-- 1. PRIMARY DEPARTMENT TABS (Top-Level Category Selection) -->
+      <div class="dept-tabs-container">
+        <div class="dept-tabs-bar" id="deptPillsBar">
+          <button type="button" class="dept-tab-btn dept-pill-btn active" data-dept="all" onclick="setDeptFilter('all')">
+            <span class="tab-label">All Shifts</span>
+            <span class="tab-badge" id="cntAllDepts">983</span>
+          </button>
+          <button type="button" class="dept-tab-btn dept-pill-btn npst-tab npst-highlight" data-dept="NPST" onclick="setDeptFilter('NPST')">
+            <span class="tab-icon">⚡</span>
+            <span class="tab-label">NPST</span>
+            <span class="tab-badge" id="cntNpst">114</span>
+          </button>
+          <button type="button" class="dept-tab-btn dept-pill-btn" data-dept="DI" onclick="setDeptFilter('DI')">
+            <span class="tab-label">DI</span>
+            <span class="tab-badge" id="cntDi">378</span>
+          </button>
+          <button type="button" class="dept-tab-btn dept-pill-btn" data-dept="TB" onclick="setDeptFilter('TB')">
+            <span class="tab-label">TB</span>
+            <span class="tab-badge" id="cntTb">208</span>
+          </button>
+          <button type="button" class="dept-tab-btn dept-pill-btn" data-dept="NPSV" onclick="setDeptFilter('NPSV')">
+            <span class="tab-label">NPSV</span>
+            <span class="tab-badge" id="cntNpsv">104</span>
+          </button>
+          <button type="button" class="dept-tab-btn dept-pill-btn" data-dept="HBS" onclick="setDeptFilter('HBS')">
+            <span class="tab-label">HBS</span>
+            <span class="tab-badge" id="cntHbs">161</span>
+          </button>
+          <button type="button" class="dept-tab-btn dept-pill-btn" data-dept="Variable" onclick="setDeptFilter('Variable')">
+            <span class="tab-label">Variable</span>
+            <span class="tab-badge" id="cntVar">18</span>
+          </button>
+        </div>
+        <!-- Hidden fallback select for compatibility -->
+        <select id="filterType" class="hidden">
+          <option value="all">All</option>
+          <option value="NPST">NPST</option>
+          <option value="DI">DI</option>
+          <option value="TB">TB</option>
+          <option value="NPSV">NPSV</option>
+          <option value="HBS">HBS</option>
+          <option value="Variable">Variable</option>
+        </select>
+      </div>
+
+      <!-- 2. DEDICATED NPST POST SUB-TABS (Appears when NPST is selected or active) -->
+      <div class="npst-subtab-strip hidden" id="npstPostSection">
+        <div class="subtab-header">
+          <div class="subtab-title">
+            <span class="subtab-badge-accent">⚡ NPST POST SUB-TABS</span>
+            <span class="subtab-desc">(Click posts to multi-select or filter):</span>
+          </div>
+          <div class="subtab-quick-presets">
+            <button type="button" class="preset-pill" onclick="setNpstPreset('all')">⚡ All NPST (114)</button>
+            <button type="button" class="preset-pill highlight-preset" onclick="setNpstPreset('nps_di')">📍 NPS DI (12)</button>
+            <button type="button" class="preset-pill" onclick="setNpstPreset('51_ctx')">📍 51 + CTX (34)</button>
+            <button type="button" class="preset-pill" onclick="setNpstPreset('fixed_gates')">🚪 Fixed Posts (74)</button>
+            <button type="button" class="preset-pill" onclick="setNpstPreset('brk_rlf')">🔄 Break Relief (28)</button>
+            <button type="button" class="preset-pill clear" onclick="setNpstPreset('clear')">Clear</button>
+          </div>
+        </div>
+        <div class="npst-multi-select" id="npstMultiSelect">
+          <button type="button" class="npst-post-btn active" data-slug="51" onclick="toggleNpstPost('51')">
+            <span class="check-box">✓</span> <span>📍 Post 51</span> <span class="post-count-pill" id="cntPost51">18</span>
+          </button>
+          <button type="button" class="npst-post-btn active" data-slug="ctx" onclick="toggleNpstPost('ctx')">
+            <span class="check-box">✓</span> <span>📍 CTX</span> <span class="post-count-pill" id="cntPostCtx">16</span>
+          </button>
+          <button type="button" class="npst-post-btn active nps-di-btn" data-slug="nps-di" onclick="toggleNpstPost('nps-di')">
+            <span class="check-box">✓</span> <span>📍 NPS DI</span> <span class="post-count-pill" id="cntPostNpsDi">12</span>
+          </button>
+          <button type="button" class="npst-post-btn active" data-slug="brk-rlf" onclick="toggleNpstPost('brk-rlf')">
+            <span class="check-box">✓</span> <span>🔄 Break Relief</span> <span class="post-count-pill" id="cntPostBrk">28</span>
+          </button>
+          <button type="button" class="npst-post-btn active" data-slug="sp1" onclick="toggleNpstPost('sp1')">
+            <span class="check-box">✓</span> <span>📍 SP1</span> <span class="post-count-pill" id="cntPostSp1">8</span>
+          </button>
+          <button type="button" class="npst-post-btn active" data-slug="g79" onclick="toggleNpstPost('g79')">
+            <span class="check-box">✓</span> <span>📍 Gate 79</span> <span class="post-count-pill" id="cntPostG79">8</span>
+          </button>
+          <button type="button" class="npst-post-btn active" data-slug="javau" onclick="toggleNpstPost('javau')">
+            <span class="check-box">✓</span> <span>📍 Java U</span> <span class="post-count-pill" id="cntPostJavaU">12</span>
+          </button>
+          <button type="button" class="npst-post-btn active" data-slug="y38" onclick="toggleNpstPost('y38')">
+            <span class="check-box">✓</span> <span>📍 Y38</span> <span class="post-count-pill" id="cntPostY38">12</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. COMPACT MAIN CONTROL BAR (Ultra-clean, single line ~48px tall) -->
+      <div class="compact-control-bar">
+        <!-- Search Input -->
+        <div class="compact-search">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" id="searchInput" class="styled-input-compact" placeholder="Search line #, note, location...">
+          <button id="clearSearchBtn" class="clear-input-btn hidden">&times;</button>
+        </div>
+
+        <!-- Availability Toggle -->
+        <div class="segmented-control compact-segmented" id="statusFilterControl">
+          <button class="seg-btn active" data-val="free">🟢 Free Only</button>
+          <button class="seg-btn" data-val="all">All Lines</button>
+          <button class="seg-btn" data-val="taken">🔴 Taken</button>
+        </div>
+
+        <!-- More Filters Button with Active Filters Badge -->
+        <button type="button" class="btn btn-secondary btn-compact" id="filterDrawerToggleBtn" onclick="toggleFilterDrawer()">
+          <span>⚙️ More Filters</span>
+          <span class="filter-active-count hidden" id="filterActiveBadge">0</span>
+        </button>
+
+        <!-- Sort Select -->
+        <div class="compact-sort">
+          <select id="sortBySelect" class="styled-select-compact">
+            <option value="line_asc">Sort: Line # (1 → 983)</option>
+            <option value="line_desc">Sort: Line # (983 → 1)</option>
+            <option value="time_earliest">Sort: Start (Earliest)</option>
+            <option value="time_latest">Sort: Start (Latest)</option>
+            <option value="weekend_first">Sort: Weekend Off</option>
+            <option value="hours_desc">Sort: Hours (40h First)</option>
+          </select>
+        </div>
+
+        <!-- Result Count -->
+        <span class="matching-count compact-count" id="matchingCountLabel">Showing 983 lines</span>
+
+        <!-- Reset Button -->
+        <button id="resetFiltersBtn" class="btn btn-ghost btn-compact" title="Reset All Filters">
+          ↺ Reset
+        </button>
+
+        <!-- View Mode Toggle -->
+        <div class="view-mode-toggle compact-view-toggle">
+          <button id="viewTableBtn" class="view-btn active" title="Table View">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/>
+            </svg>
+          </button>
+          <button id="viewGridBtn" class="view-btn" title="Card Grid View">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. TABBED FILTER DRAWER (Collapsible, tabs for Time, Gender, Days Off, Pattern, Locations) -->
+      <div class="filter-drawer hidden" id="filterDrawer">
+        <div class="filter-drawer-header">
+          <div class="drawer-header-left">
+            <span class="drawer-title">⚙️ Additional Shift Filters</span>
+            <span class="drawer-subtitle">Select a tab below to customize shift criteria without cluttering the schedule</span>
+          </div>
+          <div class="drawer-header-right">
+            <button type="button" class="btn btn-text-sm" onclick="resetSecondaryFilters()">Reset Extra Filters</button>
+            <button type="button" class="drawer-close-btn" onclick="toggleFilterDrawer(false)">&times;</button>
+          </div>
+        </div>
+
+        <!-- Drawer Tab Navigation -->
+        <div class="drawer-tabs-nav">
+          <button type="button" class="drawer-tab-item active" data-drawer-tab="time" onclick="switchDrawerTab('time')">
+            ⏱️ Start Time <span class="drawer-tab-indicator hidden" id="dotDrawerTime">•</span>
+          </button>
+          <button type="button" class="drawer-tab-item" data-drawer-tab="gender" onclick="switchDrawerTab('gender')">
+            👥 Gender Req <span class="drawer-tab-indicator hidden" id="dotDrawerGender">•</span>
+          </button>
+          <button type="button" class="drawer-tab-item" data-drawer-tab="daysOff" onclick="switchDrawerTab('daysOff')">
+            🏖️ Days Off <span class="drawer-tab-indicator hidden" id="dotDrawerDaysOff">•</span>
+          </button>
+          <button type="button" class="drawer-tab-item" data-drawer-tab="pattern" onclick="switchDrawerTab('pattern')">
+            💼 Pattern & Type <span class="drawer-tab-indicator hidden" id="dotDrawerPattern">•</span>
+          </button>
+          <button type="button" class="drawer-tab-item" data-drawer-tab="locations" onclick="switchDrawerTab('locations')">
+            📍 Other Locations <span class="drawer-tab-indicator hidden" id="dotDrawerLoc">•</span>
+          </button>
+        </div>
+
+        <!-- Drawer Tab Panes -->
+        <div class="drawer-tab-body">
+          <!-- PANE: START TIME -->
+          <div class="drawer-pane active" id="drawerPaneTime">
+            <div class="drawer-pane-row">
+              <span class="drawer-pane-label">Quick Windows:</span>
+              <div class="preset-links">
+                <button type="button" class="btn-link" onclick="setTimePreset('all')">All Times</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" style="color:var(--accent-cyan); font-weight:700;" onclick="setCustomTimeSlot('10:00', '17:00')">⏱️ 10 AM – 5 PM Window</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" onclick="setCustomTimeSlot('01:00', '06:00')">🌅 Before 6 AM</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" onclick="setCustomTimeSlot('11:30', '16:00')">☀️ 11:30 AM – 4 PM</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" onclick="setCustomTimeSlot('14:00', '23:59')">🌙 2 PM+ Evening</button>
+              </div>
+            </div>
+            <div class="time-multi-select" id="timePeriodSelect">
+              <button type="button" class="time-toggle-btn active" data-val="early_morning" onclick="toggleTimePeriod('early_morning')">
+                <span class="check-box">✓</span> <span>🌅 Early Morning (01:00-05:30)</span> <span class="time-count-pill" id="cntEarly">399</span>
+              </button>
+              <button type="button" class="time-toggle-btn active" data-val="morning" onclick="toggleTimePeriod('morning')">
+                <span class="check-box">✓</span> <span>☀️ Morning (05:30-11:40)</span> <span class="time-count-pill" id="cntMorning">125</span>
+              </button>
+              <button type="button" class="time-toggle-btn active" data-val="afternoon" onclick="toggleTimePeriod('afternoon')">
+                <span class="check-box">✓</span> <span>⛅ Afternoon (11:40-16:00)</span> <span class="time-count-pill" id="cntAfternoon">302</span>
+              </button>
+              <button type="button" class="time-toggle-btn active" data-val="evening" onclick="toggleTimePeriod('evening')">
+                <span class="check-box">✓</span> <span>🌙 Evening (16:00+)</span> <span class="time-count-pill" id="cntEvening">58</span>
+              </button>
+              <button type="button" class="time-toggle-btn" id="customTimeToggleBtn" onclick="toggleCustomTimeMode()">
+                <span>⏱️ Custom Window</span>
+              </button>
+            </div>
+            <!-- Custom Time Slot Box -->
+            <div class="custom-time-box hidden" id="customTimeBox">
+              <div class="custom-time-row">
+                <span class="custom-time-label">Starts Between:</span>
+                <div class="time-input-group">
+                  <label for="timeFromSelect" class="time-sublabel">From</label>
+                  <select id="timeFromSelect" class="styled-select-sm time-dropdown"></select>
+                </div>
+                <span class="time-range-arrow">➔</span>
+                <div class="time-input-group">
+                  <label for="timeToSelect" class="time-sublabel">To</label>
+                  <select id="timeToSelect" class="styled-select-sm time-dropdown"></select>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="applyCustomTimeRange()">Apply Window</button>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="clearCustomTimeRange()">Reset to All</button>
+              </div>
+              <div class="custom-time-hint" id="customTimeHint">
+                Showing shifts with start time between <strong>10:00 AM</strong> and <strong>05:00 PM</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE: GENDER -->
+          <div class="drawer-pane" id="drawerPaneGender">
+            <div class="drawer-pane-row">
+              <span class="drawer-pane-label">Presets:</span>
+              <div class="preset-links">
+                <button type="button" class="btn-link" onclick="setGenderPreset('all')">All</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" style="color:#60a5fa; font-weight:700;" onclick="setGenderPreset('male_mixed')">👨 Male + 🔄 Mixed</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" style="color:#fb7185; font-weight:700;" onclick="setGenderPreset('female_mixed')">👩 Female + 🔄 Mixed</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" onclick="setGenderPreset('male_all')">👨 All Male-Eligible</button>
+                <span class="sep">•</span>
+                <button type="button" class="btn-link" onclick="setGenderPreset('female_all')">👩 All Female-Eligible</button>
+              </div>
+            </div>
+            <div class="gender-multi-select" id="genderMultiSelect">
+              <button type="button" class="gender-toggle-btn active" data-val="male" onclick="toggleGenderOption('male')">
+                <span class="check-box">✓</span> <span>♂️ Male</span> <span class="gender-count-pill" id="cntMale">81</span>
+              </button>
+              <button type="button" class="gender-toggle-btn active" data-val="female" onclick="toggleGenderOption('female')">
+                <span class="check-box">✓</span> <span>♀️ Female</span> <span class="gender-count-pill" id="cntFemale">84</span>
+              </button>
+              <button type="button" class="gender-toggle-btn active" data-val="mixed" onclick="toggleGenderOption('mixed')">
+                <span class="check-box">✓</span> <span>🔄 Mixed (Switchable M/F)</span> <span class="gender-count-pill" id="cntMixed">82</span>
+              </button>
+              <button type="button" class="gender-toggle-btn active" data-val="open" onclick="toggleGenderOption('open')">
+                <span class="check-box">✓</span> <span>🌐 Open / General</span> <span class="gender-count-pill" id="cntOpen">736</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- PANE: DAYS OFF -->
+          <div class="drawer-pane" id="drawerPaneDaysOff">
+            <div style="max-width: 440px;">
+              <label class="filter-label" for="filterDaysOff" style="margin-bottom: 6px; display: block;">Days Off Preference</label>
+              <select id="filterDaysOff" class="styled-select">
+                <option value="all">Any Days Off</option>
+                <option value="weekend">🏖️ Sat & Sun Both Off (Full Weekend)</option>
+                <option value="sat">Saturday Off</option>
+                <option value="sun">Sunday Off</option>
+                <option value="frisat">Friday & Saturday Off</option>
+                <option value="sunmon">Sunday & Monday Off</option>
+                <option value="consecutive">3 Consecutive Days Off</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- PANE: PATTERN & TYPE -->
+          <div class="drawer-pane" id="drawerPanePattern">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 220px;">
+                <label class="filter-label" for="filterPattern" style="margin-bottom: 6px; display: block;">Shift Pattern</label>
+                <select id="filterPattern" class="styled-select">
+                  <option value="all">All Patterns</option>
+                  <option value="4x10">4x10 (4 days / 10 hrs - 3 Off)</option>
+                  <option value="5x8">5x8 (5 days / 8 hrs - 2 Off)</option>
+                  <option value="4x6">4x6 (Part Time 24h)</option>
+                  <option value="3x8">3x8 (Part Time 24h)</option>
+                  <option value="5x4">5x4 (Part Time 20h)</option>
+                  <option value="2x10">2x10 (Part Time 20h)</option>
+                </select>
+              </div>
+              <div style="flex: 1; min-width: 220px;">
+                <label class="filter-label" for="filterFtPt" style="margin-bottom: 6px; display: block;">Employment Type</label>
+                <select id="filterFtPt" class="styled-select">
+                  <option value="all">All (FT & PT)</option>
+                  <option value="FT">Full-Time (40 hrs)</option>
+                  <option value="PT">Part-Time (20-24 hrs)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE: OTHER LOCATIONS -->
+          <div class="drawer-pane" id="drawerPaneLocations">
+            <div style="max-width: 440px;">
+              <label class="filter-label" for="filterLocation" style="margin-bottom: 6px; display: block;">Other Specific Locations</label>
+              <select id="filterLocation" class="styled-select">
+                <option value="all">All Locations (Any)</option>
+                <optgroup label="NPSV Vehicles">
+                  <option value="Charlie">🚛 Charlie</option>
+                  <option value="Delta">🚛 Delta</option>
+                  <option value="Echo">🚛 Echo</option>
+                </optgroup>
+                <optgroup label="Main Checkpoints & HBS">
+                  <option value="DI">Domestic & Int'l (DI)</option>
+                  <option value="TB">Transborder (TB)</option>
+                  <option value="PBS">Pre-board (PBS)</option>
+                  <option value="CTX Ctrl">HBS CTX Control Room</option>
+                  <option value="CTX Srch">HBS CTX Search Room</option>
+                  <option value="OSB">OSB</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="drawer-footer">
+          <button type="button" class="btn btn-primary btn-sm" onclick="toggleFilterDrawer(false)">Apply & Close</button>
+        </div>
+      </div>
+
+      <!-- Active Filter Tags / Chips -->
+      <div class="active-filter-chips" id="activeFilterChips"></div>
+
+      <!-- Bulk Selection & Action Bar -->
+      <div class="bulk-actions-bar" id="bulkActionsBar">
+        <div class="bulk-info">
+          <input type="checkbox" id="masterShiftCheckbox" class="styled-checkbox" onchange="toggleSelectAllVisible(this.checked)" title="Select / Deselect All Visible Shifts">
+          <label for="masterShiftCheckbox" class="bulk-label"><span id="selectedCountBadge">0</span> Shifts Selected</label>
+        </div>
+        <div class="bulk-buttons">
+          <button type="button" class="btn btn-sm btn-primary" id="bulkWishlistBtn" onclick="addSelectedToWishlist()">
+            ⭐ Add Selected to Shortlist (<span id="bulkWishlistCount">0</span>)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-info" style="border-color:#38bdf8; color:#38bdf8;" onclick="selectAllNpstShifts()">
+            ⚡ Select All NPST Shifts (114)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-info" onclick="selectOnlyFreeNpstShifts()">
+            🟢 Select Free NPST
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" onclick="clearSelectedShifts()">
+            Clear Selection
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" onclick="copySelectedLineNumbers()">
+            📋 Copy Lines
+          </button>
+        </div>
+      </div>
+
+      <!-- Shifts Container -->
+      <section class="shifts-container" id="shiftsContainer">
+        <!-- Rendered dynamically via app.js -->
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading live shifts from Google Sheets...</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 2: MY WISHLIST / SHORTLIST -->
+    <div class="tab-pane" id="paneWishlist">
+      <section class="wishlist-header-panel">
+        <div>
+          <h2>⭐ My Priority Bidding Shortlist</h2>
+          <p class="subtitle">Prepare your ranked shift picks in advance. The system monitors Google Sheets live and alerts you if any of your choices get claimed!</p>
+        </div>
+        <div class="wishlist-actions">
+          <button id="clearWishlistBtn" class="btn btn-outline-danger btn-sm">Clear Shortlist</button>
+          <button id="exportWishlistBtn" class="btn btn-secondary btn-sm">Export / Print</button>
+        </div>
+      </section>
+
+      <!-- Wishlist Notification Alert Box -->
+      <div id="wishlistAlertBox" class="wishlist-alert hidden"></div>
+
+      <!-- Wishlist Shifts List -->
+      <div class="wishlist-content" id="wishlistContainer">
+        <div class="empty-state">
+          <span class="empty-icon">⭐</span>
+          <h3>Your shortlist is empty</h3>
+          <p>Click the <strong>Star (⭐)</strong> button next to any shift line in the Explorer to add it to your priority bidding list.</p>
+          <button class="btn btn-primary mt-3" onclick="switchTab('explorer')">Explore Shifts</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SENIORITY BIDDING ROSTER -->
+    <div class="tab-pane" id="paneRoster">
+      <section class="roster-header-panel">
+        <div>
+          <h2>👥 Seniority Bidding Roster</h2>
+          <p class="subtitle">Search your name or Employee # to find your exact rank, scheduled bid time, and see who has picked which line.</p>
+        </div>
+        <div class="roster-controls">
+          <div class="input-with-icon search-roster">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="rosterSearchInput" class="styled-input" placeholder="Search your name, EE#, LMS# or rank...">
+          </div>
+          <select id="rosterDayFilter" class="styled-select">
+            <option value="all">All Days (Oct 5 - Oct 9)</option>
+            <option value="Mon, 05 Oct">Day 1: Mon, 05 Oct</option>
+            <option value="Tue, 06 Oct">Day 2: Tue, 06 Oct</option>
+            <option value="Wed, 07 Oct">Day 3: Wed, 07 Oct</option>
+            <option value="Thu, 08 Oct">Day 4: Thu, 08 Oct</option>
+            <option value="Fri, 09 Oct">Day 5: Fri, 09 Oct</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- User Highlight Position Card (if found) -->
+      <div id="myRosterPositionCard" class="my-position-card hidden"></div>
+
+      <div class="roster-table-wrapper">
+        <table class="data-table" id="rosterTable">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Bid Date</th>
+              <th>Bid Time</th>
+              <th>Employee Name</th>
+              <th>EE #</th>
+              <th>FT / PT</th>
+              <th>Certifications</th>
+              <th>Awarded Line #</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="rosterTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: DEPARTMENT BREAKDOWN & ANALYTICS -->
+    <div class="tab-pane" id="paneAnalytics">
+      <section class="analytics-panel">
+        <h2>📊 Shift Allocation & Live Free Counts</h2>
+        <p class="subtitle">Real-time breakdown of remaining shifts by department, pattern, and weekend availability.</p>
+
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <h3>By Department / Bid Type</h3>
+            <div id="analyticsDeptList" class="stat-bars-list"></div>
+          </div>
+
+          <div class="analytics-card">
+            <h3>By Shift Pattern (Days x Hours)</h3>
+            <div id="analyticsPatternList" class="stat-bars-list"></div>
+          </div>
+
+          <div class="analytics-card">
+            <h3>By Time Window</h3>
+            <div id="analyticsTimeList" class="stat-bars-list"></div>
+          </div>
+
+          <div class="analytics-card">
+            <h3>Weekend Off Breakdown</h3>
+            <div id="analyticsWeekendList" class="stat-bars-list"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Shift Details Modal -->
+  <div class="modal-overlay hidden" id="shiftModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-badge" id="modalLineBadge">Line #--</span>
+          <h2 id="modalTitle">Shift Details</h2>
+        </div>
+        <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modalCloseFooterBtn">Close</button>
+        <button class="btn btn-primary" id="modalWishlistBtn">⭐ Add to Shortlist</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <p>YUL Shift Bidding Live Monitor • Montreal-Trudeau Airport • Automatic sync directly from Google Sheets</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
