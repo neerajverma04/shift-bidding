@@ -18,7 +18,7 @@ const state = {
   stats: null,
   lastUpdated: null,
   activeTab: 'explorer',
-  viewMode: localStorage.getItem('yul_view_mode') || 'table',
+  viewMode: localStorage.getItem('yul_view_mode') || (window.innerWidth < 768 ? 'grid' : 'table'),
   theme: localStorage.getItem('yul_theme') || 'dark',
   wishlist: JSON.parse(localStorage.getItem('yul_wishlist') || '[]'),
   selectedShifts: new Set(),
@@ -183,6 +183,10 @@ const elements = {
 async function init() {
   populateTimeDropdowns();
   applyTheme(state.theme);
+  if (state.viewMode === 'grid' && elements.viewGridBtn && elements.viewTableBtn) {
+    elements.viewGridBtn.classList.add('active');
+    elements.viewTableBtn.classList.remove('active');
+  }
   setupEventListeners();
   setupAutoRefresh();
   await loadShiftsData(false);

@@ -137,6 +137,10 @@ body {
   color: var(--text-main);
 }
 
+.title-short, .install-short {
+  display: none;
+}
+
 .app-subtitle {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -2196,6 +2200,432 @@ tr.is-selected-row {
   color: var(--text-dim);
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
+}
+
+/* =============================================================
+   MOBILE RESPONSIVE ENHANCEMENTS (Phones & Tablets)
+============================================================= */
+@media (max-width: 768px) {
+  /* Prevent horizontal layout shifts */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Compact Native-Feel App Header */
+  .app-header {
+    padding: 8px 12px;
+    height: auto;
+    min-height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left {
+    gap: 8px;
+  }
+  .airport-badge {
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+  .airport-code {
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+  }
+  .badge-sub {
+    font-size: 0.5rem;
+    letter-spacing: 0.3px;
+  }
+  .title-full {
+    display: none !important;
+  }
+  .title-short {
+    display: inline !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+  .app-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .app-subtitle {
+    display: none !important; /* Hide long subtitle on mobile */
+  }
+  .header-right {
+    gap: 6px;
+  }
+  .install-full {
+    display: none !important;
+  }
+  .install-short {
+    display: inline !important;
+  }
+  #installAppBtn {
+    padding: 3px 8px !important;
+    font-size: 0.72rem !important;
+    border-radius: 16px !important;
+  }
+  .sync-indicator {
+    padding: 3px 6px !important;
+    gap: 5px !important;
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+  }
+  .sync-time-label {
+    display: none !important; /* Hide 'Next in 25s' text on mobile header to save space */
+  }
+  .sync-status-label {
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+  }
+  .auto-refresh-box select {
+    display: none; /* Hide dropdown select on mobile header */
+  }
+  #refreshBtn {
+    padding: 6px;
+  }
+  #refreshBtn .btn-text {
+    display: none; /* Icon only on mobile */
+  }
+  #themeToggle {
+    padding: 6px;
+  }
+
+  /* KPI Summary: Compact 3-Column Grid (less than 90px tall) */
+  .kpi-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+  .kpi-card {
+    padding: 6px 8px !important;
+    min-width: 0 !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    border-radius: 8px !important;
+  }
+  .kpi-icon {
+    display: none !important; /* Hide large emojis on mobile cards */
+  }
+  .kpi-value {
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+  }
+  .kpi-label {
+    font-size: 0.62rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    width: 100% !important;
+    opacity: 0.85;
+  }
+  .kpi-tag {
+    font-size: 0.52rem !important;
+    padding: 1px 4px !important;
+    top: 3px !important;
+    right: 3px !important;
+    border-radius: 3px !important;
+  }
+
+  /* Navigation Tabs: Horizontal Touch Scroll */
+  .nav-tabs-wrapper {
+    padding: 0 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nav-tabs-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-tabs {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    width: max-content;
+  }
+  .nav-tab {
+    padding: 9px 12px !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* Main Content Container */
+  .main-content {
+    padding: 10px 8px !important;
+  }
+
+  /* Department Tabs Bar: Smooth Horizontal Scroll */
+  .dept-tabs-bar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 4px !important;
+    scrollbar-width: none !important;
+    gap: 6px !important;
+  }
+  .dept-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .dept-tab-btn {
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* NPST Sub-Post Container */
+  .npst-post-section {
+    padding: 8px 10px !important;
+    margin-bottom: 10px !important;
+    border-radius: 10px !important;
+  }
+  .npst-sub-tabs-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  .npst-presets-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 2px !important;
+    gap: 4px !important;
+  }
+  .npst-presets-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .npst-preset-btn {
+    padding: 4px 8px !important;
+    font-size: 0.72rem !important;
+    flex-shrink: 0 !important;
+  }
+  .npst-multi-select {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 4px !important;
+    gap: 6px !important;
+  }
+  .npst-multi-select::-webkit-scrollbar {
+    display: none;
+  }
+  .npst-post-btn {
+    flex-shrink: 0 !important;
+    padding: 6px 10px !important;
+    font-size: 0.76rem !important;
+  }
+
+  /* Search & Filter Toolbar */
+  .filter-controls {
+    padding: 10px 8px !important;
+    gap: 8px !important;
+  }
+  .search-wrapper {
+    width: 100% !important;
+  }
+  .search-input {
+    font-size: 0.85rem !important;
+    padding: 8px 32px 8px 36px !important;
+  }
+  .quick-filters-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .quick-filters-left {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .quick-filters-right {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+  .status-toggle {
+    padding: 2px !important;
+  }
+  .status-toggle-btn {
+    padding: 4px 8px !important;
+    font-size: 0.75rem !important;
+  }
+  .sort-select {
+    max-width: 160px !important;
+    font-size: 0.75rem !important;
+    padding: 6px 8px !important;
+  }
+  .matching-count {
+    font-size: 0.72rem !important;
+  }
+
+  /* Bulk Actions Bar */
+  .bulk-actions-bar {
+    padding: 8px 10px !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+    border-radius: 8px !important;
+  }
+  .bulk-actions-top {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .bulk-actions-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .bulk-actions-buttons .btn {
+    padding: 6px 8px !important;
+    font-size: 0.74rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Shift Cards: Perfectly fitted for mobile */
+  .shifts-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .shift-card {
+    padding: 10px 10px !important;
+    border-radius: 10px !important;
+    gap: 8px !important;
+  }
+  .card-top {
+    align-items: center !important;
+  }
+  .card-title-group {
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+  }
+  .card-line-no {
+    font-size: 1.15rem !important;
+  }
+  .card-time-row {
+    flex-wrap: wrap !important;
+    gap: 4px 8px !important;
+  }
+  .card-time-main {
+    font-size: 1.05rem !important;
+  }
+  .shift-loc-summary {
+    font-size: 0.75rem !important;
+  }
+  .hours-tag {
+    font-size: 0.72rem !important;
+  }
+
+  /* 7-Day Schedule Strip: Guaranteed No Horizontal Overflow */
+  .card-schedule-strip {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 2px !important;
+    width: 100% !important;
+    margin: 2px 0 !important;
+  }
+  .day-chip {
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 3px 1px !important;
+    border-radius: 4px !important;
+    box-sizing: border-box !important;
+  }
+  .day-chip-name {
+    font-size: 0.58rem !important;
+    margin-bottom: 0 !important;
+  }
+  .day-chip-time {
+    font-size: 0.62rem !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+  }
+  .day-chip-loc {
+    font-size: 0.5rem !important;
+    padding: 0 1px !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+    line-height: 1.2 !important;
+    margin-top: 1px !important;
+  }
+
+  /* Table View on Mobile: Horizontal Scrollable Wrapper */
+  .shifts-table-wrapper {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 8px !important;
+  }
+  .shifts-table-wrapper table {
+    min-width: 780px !important;
+  }
+
+  /* Wishlist & Roster Panels */
+  .wishlist-header-panel, .roster-header-panel {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+  .search-roster {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+  .roster-controls {
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+
+  /* Shift Detail Modal on Mobile */
+  .modal-dialog {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 10px auto !important;
+    max-height: 90vh !important;
+    border-radius: 12px !important;
+  }
+  .modal-body {
+    padding: 14px 12px !important;
+    max-height: 75vh !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-title {
+    font-size: 0.85rem;
+  }
+  .kpi-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px !important;
+    padding: 6px 8px !important;
+  }
+  .kpi-card {
+    padding: 5px 6px !important;
+  }
+  .kpi-value {
+    font-size: 1.05rem !important;
+  }
 }
 
 /* Print Styles */

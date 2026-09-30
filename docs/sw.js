@@ -1,5 +1,5 @@
 // Service Worker for YUL Shift Bidding PWA
-const CACHE_NAME = 'shift-bid-v2';
+const CACHE_NAME = 'shift-bid-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
