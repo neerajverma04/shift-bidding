@@ -21,6 +21,10 @@ const state = {
   viewMode: localStorage.getItem('yul_view_mode') || (window.innerWidth < 768 ? 'grid' : 'table'),
   theme: localStorage.getItem('yul_theme') || 'dark',
   wishlist: JSON.parse(localStorage.getItem('yul_wishlist') || '[]'),
+  wishlistStatus: localStorage.getItem('yul_wishlist_status') || 'free',
+  wishlistSearch: '',
+  wishlistViewMode: localStorage.getItem('yul_wishlist_view_mode') || (window.innerWidth < 768 ? 'grid' : 'table'),
+  _visibleWishlistLines: [],
   selectedShifts: new Set(),
   previouslyFree: new Set(),
   autoRefreshInterval: 30, // seconds
@@ -154,6 +158,18 @@ const elements = {
   wishlistAlertBox: document.getElementById('wishlistAlertBox'),
   clearWishlistBtn: document.getElementById('clearWishlistBtn'),
   exportWishlistBtn: document.getElementById('exportWishlistBtn'),
+  wishlistStatusControl: document.getElementById('wishlistStatusControl'),
+  wishlistCountFree: document.getElementById('wishlistCountFree'),
+  wishlistCountAll: document.getElementById('wishlistCountAll'),
+  wishlistCountTaken: document.getElementById('wishlistCountTaken'),
+  wishlistSearchInput: document.getElementById('wishlistSearchInput'),
+  clearWishlistSearchBtn: document.getElementById('clearWishlistSearchBtn'),
+  purgeClaimedWishlistBtn: document.getElementById('purgeClaimedWishlistBtn'),
+  wishlistPurgeCount: document.getElementById('wishlistPurgeCount'),
+  viewWishlistTableBtn: document.getElementById('viewWishlistTableBtn'),
+  viewWishlistGridBtn: document.getElementById('viewWishlistGridBtn'),
+  wishlistToolbar: document.getElementById('wishlistToolbar'),
+  wishlistHeaderStats: document.getElementById('wishlistHeaderStats'),
 
   // Roster
   rosterSearchInput: document.getElementById('rosterSearchInput'),
@@ -1835,53 +1851,265 @@ function toggleWishlist(lineNo) {
   renderWishlist();
 }
 
+function setWishlistStatus(status) {
+  state.wishlistStatus = status;
+  localStorage.setItem('yul_wishlist_status', status);
+  if (elements.wishlistStatusControl) {
+    elements.wishlistStatusControl.querySelectorAll('.seg-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.val === status);
+    });
+  }
+  renderWishlist();
+}
+
+function setWishlistViewMode(mode) {
+  state.wishlistViewMode = mode;
+  localStorage.setItem('yul_wishlist_view_mode', mode);
+  if (elements.viewWishlistTableBtn) {
+    elements.viewWishlistTableBtn.classList.toggle('active', mode === 'table');
+  }
+  if (elements.viewWishlistGridBtn) {
+    elements.viewWishlistGridBtn.classList.toggle('active', mode === 'grid');
+  }
+  renderWishlist();
+}
+
+function clearWishlistSearch() {
+  state.wishlistSearch = '';
+  if (elements.wishlistSearchInput) elements.wishlistSearchInput.value = '';
+  if (elements.clearWishlistSearchBtn) elements.clearWishlistSearchBtn.classList.add('hidden');
+  renderWishlist();
+}
+
+function purgeClaimedFromWishlist() {
+  const shiftsMap = new Map(state.shifts.map(s => [s.lineNo, s]));
+  const claimedLines = state.wishlist.filter(lineNo => {
+    const s = shiftsMap.get(lineNo);
+    return s && s.isTaken;
+  });
+
+  if (claimedLines.length === 0) {
+    alert('None of your shortlisted shifts are currently claimed.');
+    return;
+  }
+
+  const confirmed = confirm(`Are you sure you want to purge ${claimedLines.length} claimed shift(s) from your shortlist?\n\nThis will keep only shifts that are currently available to bid on.`);
+  if (!confirmed) return;
+
+  state.wishlist = state.wishlist.filter(lineNo => {
+    const s = shiftsMap.get(lineNo);
+    return s && !s.isTaken;
+  });
+  localStorage.setItem('yul_wishlist', JSON.stringify(state.wishlist));
+  updateKpis();
+  renderExplorer();
+  renderWishlist();
+}
+
+function moveWishlistFiltered(lineNo, direction) {
+  const visible = state._visibleWishlistLines && state._visibleWishlistLines.length > 0
+    ? state._visibleWishlistLines
+    : state.wishlist;
+  const currIdx = visible.indexOf(lineNo);
+  if (currIdx < 0) return;
+  const targetIdx = currIdx + direction;
+  if (targetIdx < 0 || targetIdx >= visible.length) return;
+  const targetLineNo = visible[targetIdx];
+
+  const idxA = state.wishlist.indexOf(lineNo);
+  const idxB = state.wishlist.indexOf(targetLineNo);
+  if (idxA < 0 || idxB < 0) return;
+
+  const temp = state.wishlist[idxA];
+  state.wishlist[idxA] = state.wishlist[idxB];
+  state.wishlist[idxB] = temp;
+  localStorage.setItem('yul_wishlist', JSON.stringify(state.wishlist));
+  renderWishlist();
+}
+
+function moveWishlist(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= state.wishlist.length) return;
+  const temp = state.wishlist[index];
+  state.wishlist[index] = state.wishlist[newIndex];
+  state.wishlist[newIndex] = temp;
+  localStorage.setItem('yul_wishlist', JSON.stringify(state.wishlist));
+  renderWishlist();
+}
+
 function renderWishlist() {
   const container = elements.wishlistContainer;
-  if (state.wishlist.length === 0) {
+  if (!container) return;
+
+  const shiftsMap = new Map(state.shifts.map(s => [s.lineNo, s]));
+  const allItems = state.wishlist
+    .map((lineNo, origIdx) => ({ shift: shiftsMap.get(lineNo), origIdx, lineNo }))
+    .filter(item => item.shift != null);
+
+  const totalCount = allItems.length;
+  const freeCount = allItems.filter(item => !item.shift.isTaken).length;
+  const takenCount = totalCount - freeCount;
+
+  // Update Toolbar Badges & Counters
+  if (elements.wishlistCountFree) elements.wishlistCountFree.textContent = freeCount;
+  if (elements.wishlistCountAll) elements.wishlistCountAll.textContent = totalCount;
+  if (elements.wishlistCountTaken) elements.wishlistCountTaken.textContent = takenCount;
+  if (elements.wishlistPurgeCount) elements.wishlistPurgeCount.textContent = takenCount;
+
+  if (elements.purgeClaimedWishlistBtn) {
+    elements.purgeClaimedWishlistBtn.disabled = (takenCount === 0);
+    elements.purgeClaimedWishlistBtn.style.opacity = (takenCount === 0) ? '0.5' : '1';
+    elements.purgeClaimedWishlistBtn.style.cursor = (takenCount === 0) ? 'not-allowed' : 'pointer';
+  }
+
+  if (elements.wishlistStatusControl) {
+    elements.wishlistStatusControl.querySelectorAll('.seg-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.val === state.wishlistStatus);
+    });
+  }
+
+  if (elements.viewWishlistTableBtn) {
+    elements.viewWishlistTableBtn.classList.toggle('active', state.wishlistViewMode === 'table');
+  }
+  if (elements.viewWishlistGridBtn) {
+    elements.viewWishlistGridBtn.classList.toggle('active', state.wishlistViewMode === 'grid');
+  }
+
+  // Update Header Stats
+  if (elements.wishlistHeaderStats) {
+    if (totalCount === 0) {
+      elements.wishlistHeaderStats.innerHTML = '';
+    } else {
+      elements.wishlistHeaderStats.innerHTML = `
+        <span class="wishlist-stat-pill available">🟢 ${freeCount} Available to Bid</span>
+        <span class="wishlist-stat-pill ${takenCount > 0 ? 'claimed' : ''}">🔴 ${takenCount} Claimed</span>
+        <span class="wishlist-stat-pill">⭐ ${totalCount} Total Shortlisted</span>
+      `;
+    }
+  }
+
+  // Empty Shortlist State
+  if (totalCount === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <span class="empty-icon">⭐</span>
         <h3>Your shortlist is empty</h3>
-        <p>Star shifts in the Explorer to build your ranked priority list. You'll get instant visual alerts if anyone takes them during bidding!</p>
+        <p>Click the <strong>Star (⭐)</strong> button next to any shift line in the Explorer to add it to your priority bidding list.</p>
         <button class="btn btn-primary mt-3" onclick="switchTab('explorer')">Explore Shifts</button>
       </div>
     `;
     return;
   }
 
-  const shiftsMap = new Map(state.shifts.map(s => [s.lineNo, s]));
-  const items = state.wishlist.map(lineNo => shiftsMap.get(lineNo)).filter(Boolean);
+  // Compute live available pick index for free shifts
+  let availCounter = 0;
+  allItems.forEach(item => {
+    if (!item.shift.isTaken) {
+      item.availRank = ++availCounter;
+    } else {
+      item.availRank = null;
+    }
+  });
 
-  let freeCount = items.filter(i => !i.isTaken).length;
+  // Filter items by status
+  let filteredItems = allItems;
+  if (state.wishlistStatus === 'free') {
+    filteredItems = filteredItems.filter(item => !item.shift.isTaken);
+  } else if (state.wishlistStatus === 'taken') {
+    filteredItems = filteredItems.filter(item => item.shift.isTaken);
+  }
 
+  // Filter items by search query
+  const query = (state.wishlistSearch || '').trim().toLowerCase();
+  if (query) {
+    filteredItems = filteredItems.filter(item => {
+      const s = item.shift;
+      if (String(s.lineNo).includes(query)) return true;
+      if (s.type && s.type.toLowerCase().includes(query)) return true;
+      if (s.shiftPattern && s.shiftPattern.toLowerCase().includes(query)) return true;
+      if (s.locationSummary && s.locationSummary.toLowerCase().includes(query)) return true;
+      if (s.locations && s.locations.some(l => l.toLowerCase().includes(query))) return true;
+      if (s.primaryStart && s.primaryStart.toLowerCase().includes(query)) return true;
+      if (s.assignedTo && s.assignedTo.name && s.assignedTo.name.toLowerCase().includes(query)) return true;
+      if (s.offDays && s.offDays.some(d => d.toLowerCase().includes(query))) return true;
+      return false;
+    });
+  }
+
+  // Cache visible lines for reordering
+  state._visibleWishlistLines = filteredItems.map(item => item.lineNo);
+
+  // Filtered Empty State
+  if (filteredItems.length === 0) {
+    if (query) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <span class="empty-icon">🔍</span>
+          <h3>No Matching Shifts in Shortlist</h3>
+          <p>No shortlisted shifts match "<strong>${state.wishlistSearch}</strong>".</p>
+          <button class="btn btn-secondary mt-3" onclick="clearWishlistSearch()">Clear Search</button>
+        </div>
+      `;
+    } else if (state.wishlistStatus === 'free') {
+      container.innerHTML = `
+        <div class="empty-state">
+          <span class="empty-icon">🔴</span>
+          <h3>All Shortlisted Shifts Claimed</h3>
+          <p>All <strong>${totalCount}</strong> shifts on your shortlist have been claimed by senior bidders during live bidding.</p>
+          <div style="display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="setWishlistStatus('all')">View All Shortlisted (${totalCount})</button>
+            <button class="btn btn-primary" onclick="switchTab('explorer')">Find Available Shifts in Explorer</button>
+          </div>
+        </div>
+      `;
+    } else if (state.wishlistStatus === 'taken') {
+      container.innerHTML = `
+        <div class="empty-state">
+          <span class="empty-icon">🎉</span>
+          <h3>No Claimed Shifts!</h3>
+          <p>Great news! All <strong>${totalCount}</strong> of your shortlisted shifts are currently <strong>🟢 AVAILABLE</strong> to bid on.</p>
+          <button class="btn btn-primary mt-3" onclick="setWishlistStatus('free')">View Available Shifts</button>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // Render Table View or Card Grid View
+  if (state.wishlistViewMode === 'grid') {
+    renderWishlistGridView(filteredItems, container);
+  } else {
+    renderWishlistTableView(filteredItems, container);
+  }
+}
+
+function renderWishlistTableView(items, container) {
   let html = `
-    <div style="margin-bottom: 14px; font-size: 0.85rem; color: var(--text-muted);">
-      <strong>${freeCount}</strong> of your <strong>${items.length}</strong> shortlisted shifts are currently <strong>FREE</strong>.
-    </div>
     <div class="shifts-table-card">
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width: 50px; text-align: center;">Priority</th>
+            <th style="width: 75px; text-align: center;">Priority</th>
             <th style="width: 70px;">Line #</th>
-            <th style="width: 100px;">Status</th>
+            <th style="width: 105px;">Status</th>
             <th style="width: 80px;">Type</th>
             <th style="width: 80px;">Pattern</th>
-            <th style="width: 100px;">Hours</th>
-            <th style="width: 125px;">Primary Time & Post</th>
+            <th style="width: 95px;">Hours</th>
+            <th style="width: 130px;">Primary Time & Post</th>
             <th>Weekly Schedule</th>
             <th style="width: 130px;">Days Off</th>
             <th style="width: 90px;">Gender</th>
-            <th style="width: 110px; text-align: right;">Reorder / Del</th>
+            <th style="width: 105px; text-align: right;">Reorder / Del</th>
           </tr>
         </thead>
         <tbody>
   `;
 
-  items.forEach((s, idx) => {
+  items.forEach((item, visIdx) => {
+    const s = item.shift;
     const isTakenClass = s.isTaken ? 'is-taken-row' : '';
     const statusBadge = s.isTaken
-      ? `<span class="status-badge taken" title="Taken by: ${s.assignedTo?.name || 'Assigned'}">🔴 CLAIMED</span>`
+      ? `<span class="status-badge taken" title="Taken by: ${s.assignedTo?.name || 'Assigned'}">🔴 CLAIMED</span>${s.assignedTo?.name ? `<div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 2px;">by ${s.assignedTo.name}</div>` : ''}`
       : `<span class="status-badge free">🟢 AVAILABLE</span>`;
 
     const deptBadge = `<span class="dept-badge dept-${s.type}">${s.type}</span>`;
@@ -1898,6 +2126,16 @@ function renderWishlist() {
     } else if (cat === 'mixed') {
       genderBadge = `<span class="dept-badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">🔄 MIXED</span>`;
     }
+
+    const priorityCell = s.isTaken
+      ? `<div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
+           <span style="font-size:0.75rem; color:var(--accent-rose); font-weight:700;">Claimed</span>
+           <span style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Rank #${item.origIdx + 1}</span>
+         </div>`
+      : `<div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
+           <span class="next-pick-badge">PICK #${item.availRank}</span>
+           <span style="font-size:0.68rem; color:var(--text-muted); font-weight:700;">Rank #${item.origIdx + 1}</span>
+         </div>`;
 
     const days = ['Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'];
     let schedHtml = '<div class="day-schedule-grid">';
@@ -1924,8 +2162,8 @@ function renderWishlist() {
 
     html += `
       <tr class="${isTakenClass}">
-        <td style="text-align: center; font-weight: 800; font-family: var(--font-mono); color: var(--accent-amber);">
-          #${idx + 1}
+        <td style="text-align: center; vertical-align: middle;">
+          ${priorityCell}
         </td>
         <td>
           <button class="line-no-btn" onclick="openShiftModal(${s.lineNo})">#${s.lineNo}</button>
@@ -1943,10 +2181,10 @@ function renderWishlist() {
         <td>${schedHtml}</td>
         <td>${daysOffPill}</td>
         <td>${genderBadge}</td>
-        <td style="text-align: right;">
-          <button class="btn btn-ghost btn-icon" style="padding: 2px 6px;" onclick="moveWishlist(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up">▲</button>
-          <button class="btn btn-ghost btn-icon" style="padding: 2px 6px;" onclick="moveWishlist(${idx}, 1)" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">▼</button>
-          <button class="btn btn-ghost btn-icon" style="padding: 2px 6px; color: var(--accent-rose);" onclick="toggleWishlist(${s.lineNo})" title="Remove">✕</button>
+        <td style="text-align: right; vertical-align: middle;">
+          <button class="btn btn-ghost btn-icon" style="padding: 2px 6px;" onclick="moveWishlistFiltered(${s.lineNo}, -1)" ${visIdx === 0 ? 'disabled' : ''} title="Move Up in Priority">▲</button>
+          <button class="btn btn-ghost btn-icon" style="padding: 2px 6px;" onclick="moveWishlistFiltered(${s.lineNo}, 1)" ${visIdx === items.length - 1 ? 'disabled' : ''} title="Move Down in Priority">▼</button>
+          <button class="btn btn-ghost btn-icon" style="padding: 2px 6px; color: var(--accent-rose);" onclick="toggleWishlist(${s.lineNo})" title="Remove from Shortlist">✕</button>
         </td>
       </tr>
     `;
@@ -1961,14 +2199,98 @@ function renderWishlist() {
   container.innerHTML = html;
 }
 
-function moveWishlist(index, direction) {
-  const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= state.wishlist.length) return;
-  const temp = state.wishlist[index];
-  state.wishlist[index] = state.wishlist[newIndex];
-  state.wishlist[newIndex] = temp;
-  localStorage.setItem('yul_wishlist', JSON.stringify(state.wishlist));
-  renderWishlist();
+function renderWishlistGridView(items, container) {
+  let html = `<div class="shifts-grid-view">`;
+
+  items.forEach((item, visIdx) => {
+    const s = item.shift;
+    const isTakenClass = s.isTaken ? 'is-taken' : '';
+    const statusBadge = s.isTaken
+      ? `<span class="status-badge taken" title="Taken by: ${s.assignedTo?.name || 'Assigned'}">🔴 CLAIMED</span>`
+      : `<span class="status-badge free">🟢 AVAILABLE</span>`;
+
+    const deptBadge = `<span class="dept-badge dept-${s.type}">${s.type}</span>`;
+    const daysOffPill = s.hasWeekendOff
+      ? `<span class="days-off-pill weekend">🏖️ Sat/Sun Off</span>`
+      : `<span class="days-off-pill">${s.offDays.join('/')}</span>`;
+
+    const cat = s.genderCategory || getShiftGenderCat(s);
+    let genderBadge = `<span style="color: var(--text-dim); font-size: 0.72rem;">Open</span>`;
+    if (cat === 'male') {
+      genderBadge = `<span class="dept-badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35);">♂ MALE</span>`;
+    } else if (cat === 'female') {
+      genderBadge = `<span class="dept-badge" style="background: rgba(244, 63, 94, 0.18); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35);">♀ FEMALE</span>`;
+    } else if (cat === 'mixed') {
+      genderBadge = `<span class="dept-badge" style="background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);">🔄 MIXED</span>`;
+    }
+
+    const priorityBadge = s.isTaken
+      ? `<span style="font-size:0.75rem; color:var(--accent-rose); font-weight:700;">🔴 CLAIMED</span> <span class="wishlist-rank-badge">Rank #${item.origIdx + 1}</span>`
+      : `<span class="next-pick-badge">PICK #${item.availRank}</span> <span class="wishlist-rank-badge">Rank #${item.origIdx + 1}</span>`;
+
+    const days = ['Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'];
+    let schedHtml = '<div class="card-schedule-strip">';
+    days.forEach(d => {
+      const dayData = s.schedule[d];
+      if (dayData.isOff) {
+        schedHtml += `<div class="day-chip off"><span class="day-chip-name">${d.slice(0, 2)}</span><span class="day-chip-time">OFF</span></div>`;
+      } else {
+        const timeStr = dayData.start || 'ON';
+        const locSlug = dayData.locSlug || 'default';
+        const locBadge = dayData.shortLoc
+          ? `<span class="day-chip-loc loc-${locSlug}">${dayData.shortLoc}</span>`
+          : '';
+        schedHtml += `
+          <div class="day-chip day" title="${d}: ${dayData.raw || ''}">
+            <span class="day-chip-name">${d.slice(0, 2)}</span>
+            <span class="day-chip-time">${timeStr}</span>
+            ${locBadge}
+          </div>
+        `;
+      }
+    });
+    schedHtml += '</div>';
+
+    html += `
+      <div class="shift-card ${isTakenClass}">
+        <div class="card-top">
+          <div class="card-title-group" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span class="card-line-no">#${s.lineNo}</span>
+            ${priorityBadge}
+            ${deptBadge}
+            ${genderBadge}
+            <span class="pattern-badge">${s.shiftPattern}</span>
+          </div>
+          <div class="wishlist-card-reorder">
+            <button class="btn btn-ghost btn-icon" style="padding: 2px 6px; font-size: 0.75rem;" onclick="moveWishlistFiltered(${s.lineNo}, -1)" ${visIdx === 0 ? 'disabled' : ''} title="Move Up">▲</button>
+            <button class="btn btn-ghost btn-icon" style="padding: 2px 6px; font-size: 0.75rem;" onclick="moveWishlistFiltered(${s.lineNo}, 1)" ${visIdx === items.length - 1 ? 'disabled' : ''} title="Move Down">▼</button>
+            <button class="btn btn-ghost btn-icon" style="padding: 2px 6px; color: var(--accent-rose); font-size: 0.85rem;" onclick="toggleWishlist(${s.lineNo})" title="Remove">✕</button>
+          </div>
+        </div>
+
+        <div class="card-time-row">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+            <span class="card-time-main">${s.primaryStart ? s.primaryStart : 'Various Times'}</span>
+            ${s.locationSummary ? `<span class="shift-loc-summary">📍 ${s.locationSummary}</span>` : ''}
+          </div>
+          <span class="hours-tag">• ${s.hours} Hours (${s.ftpt})</span>
+        </div>
+
+        ${schedHtml}
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+          ${daysOffPill}
+          <div style="display: flex; align-items: center; gap: 6px;">
+            ${statusBadge}
+            <button class="btn btn-secondary btn-icon" style="padding: 4px 8px; font-size: 0.75rem;" onclick="openShiftModal(${s.lineNo})">Inspect Line</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
 }
 
 function checkWishlistAlerts() {
@@ -2361,8 +2683,30 @@ function setupEventListeners() {
     renderExplorer();
   });
   elements.kpiWishlistCard.addEventListener('click', () => {
+    state.wishlistStatus = 'free';
+    if (elements.wishlistStatusControl) {
+      elements.wishlistStatusControl.querySelectorAll('.seg-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === 'free');
+      });
+    }
     switchTab('wishlist');
+    renderWishlist();
   });
+
+  // Wishlist Search with Debounce
+  let wishlistSearchTimer;
+  if (elements.wishlistSearchInput) {
+    elements.wishlistSearchInput.addEventListener('input', (e) => {
+      clearTimeout(wishlistSearchTimer);
+      wishlistSearchTimer = setTimeout(() => {
+        state.wishlistSearch = e.target.value;
+        if (elements.clearWishlistSearchBtn) {
+          elements.clearWishlistSearchBtn.classList.toggle('hidden', !e.target.value);
+        }
+        renderWishlist();
+      }, 200);
+    });
+  }
 
   // Search Input with Debounce
   let searchTimer;
@@ -2481,6 +2825,11 @@ function setupEventListeners() {
 
 // Global helpers for inline HTML onclick handlers
 window.toggleWishlist = toggleWishlist;
+window.setWishlistStatus = setWishlistStatus;
+window.setWishlistViewMode = setWishlistViewMode;
+window.clearWishlistSearch = clearWishlistSearch;
+window.purgeClaimedFromWishlist = purgeClaimedFromWishlist;
+window.moveWishlistFiltered = moveWishlistFiltered;
 window.openShiftModal = openShiftModal;
 window.moveWishlist = moveWishlist;
 window.removeFilterChip = removeFilterChip;

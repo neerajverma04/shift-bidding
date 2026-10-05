@@ -535,15 +535,69 @@
     <!-- TAB 2: MY WISHLIST / SHORTLIST -->
     <div class="tab-pane" id="paneWishlist">
       <section class="wishlist-header-panel">
-        <div>
+        <div class="wishlist-title-group">
           <h2>⭐ My Priority Bidding Shortlist</h2>
           <p class="subtitle">Prepare your ranked shift picks in advance. The system monitors Google Sheets live and alerts you if any of your choices get claimed!</p>
         </div>
-        <div class="wishlist-actions">
-          <button id="clearWishlistBtn" class="btn btn-outline-danger btn-sm">Clear Shortlist</button>
-          <button id="exportWishlistBtn" class="btn btn-secondary btn-sm">Export / Print</button>
+        <div class="wishlist-header-stats" id="wishlistHeaderStats">
+          <!-- Rendered dynamically via app.js -->
         </div>
       </section>
+
+      <!-- Wishlist Toolbar: Status Toggle (Available / All / Taken), Search, and Quick Actions -->
+      <div class="wishlist-toolbar" id="wishlistToolbar">
+        <div class="wishlist-toolbar-left">
+          <!-- Availability Segmented Toggle -->
+          <div class="segmented-control compact-segmented" id="wishlistStatusControl">
+            <button type="button" class="seg-btn active" data-val="free" onclick="setWishlistStatus('free')" title="Show only shifts that are currently available to bid on">
+              🟢 Available Only (<span id="wishlistCountFree">0</span>)
+            </button>
+            <button type="button" class="seg-btn" data-val="all" onclick="setWishlistStatus('all')" title="Show all shortlisted shifts (Available & Claimed)">
+              All Shortlisted (<span id="wishlistCountAll">0</span>)
+            </button>
+            <button type="button" class="seg-btn" data-val="taken" onclick="setWishlistStatus('taken')" title="Show only claimed/taken shifts">
+              🔴 Claimed (<span id="wishlistCountTaken">0</span>)
+            </button>
+          </div>
+
+          <!-- Shortlist Search Box -->
+          <div class="input-with-icon wishlist-search-wrapper">
+            <svg class="input-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="wishlistSearchInput" class="styled-input-compact" placeholder="Search shortlist (line #, location, time)...">
+            <button type="button" id="clearWishlistSearchBtn" class="clear-input-btn hidden" onclick="clearWishlistSearch()">&times;</button>
+          </div>
+        </div>
+
+        <div class="wishlist-toolbar-right">
+          <!-- View Toggle -->
+          <div class="view-mode-toggle compact-view-toggle">
+            <button id="viewWishlistTableBtn" class="view-btn" onclick="setWishlistViewMode('table')" title="Table View">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/>
+              </svg>
+            </button>
+            <button id="viewWishlistGridBtn" class="view-btn" onclick="setWishlistViewMode('grid')" title="Card Grid View">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Purge Claimed Button -->
+          <button type="button" id="purgeClaimedWishlistBtn" class="btn btn-outline-danger btn-compact" onclick="purgeClaimedFromWishlist()" title="Remove all claimed shifts from your shortlist">
+            🗑️ Purge Claimed (<span id="wishlistPurgeCount">0</span>)
+          </button>
+          <button type="button" id="clearWishlistBtn" class="btn btn-ghost btn-compact">
+            Clear All
+          </button>
+          <button type="button" id="exportWishlistBtn" class="btn btn-secondary btn-compact">
+            Export / Print
+          </button>
+        </div>
+      </div>
 
       <!-- Wishlist Notification Alert Box -->
       <div id="wishlistAlertBox" class="wishlist-alert hidden"></div>
